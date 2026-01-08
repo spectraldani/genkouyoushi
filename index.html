@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Grid Generator</title>
+    <style>
+        :root {
+            --page-width: 297;
+            --page-height: 210;
+        }
+
+        svg {
+            height: auto;
+            width: auto;
+            max-width: 100%;
+            max-height: 70vh;
+            aspect-ratio: var(--page-width) / var(--page-height);
+            border: 1px solid black;
+            margin: 0 auto;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <form>
+            <fieldset name="fieldset">
+                <legend>Grid Settings</legend>
+                <div class="input-group">
+                    <label for="pageType">Page Type</label>
+                    <select id="pageType" name="pageType">
+                        <option value="215.9;279.4">Letter</option>
+                        <option selected value="210;297">A4</option>
+                        <option value="175.2;250">B5</option>
+                        <option value="148;210">A5</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="margin">Margin (mm)</label>
+                    <input type="number" id="margin" name="margin" value="20" step="1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="innerSize">Inner Size (mm)</label>
+                    <input type="number" id="innerSize" name="innerSize" value="8.0" step="0.1" min="0">
+                    <label for="gridStyle">Style</label>
+                    <select id="gridStyle" name="gridStyle">
+                        <option value="none">无</option>
+                        <option value="ruled">竖</option>
+                        <option value="grid" selected>方</option>
+                    </select>
+                    <label for="addCross">Cross:</label>
+                    <input type="checkbox" id="addCross" name="addCross" checked>
+                    <label for="addDiagonal">Diagonal:</label>
+                    <input type="checkbox" id="addDiagonal" name="addDiagonal" checked>
+                    <label for="addThirds">Thirds:</label>
+                    <input type="checkbox" id="addThirds" name="addThirds">
+                    <label for="addBox">Box:</label>
+                    <input type="checkbox" id="addBox" name="addBox">
+                    <label for="addRuby">Add ruby column?</label>
+                    <input type="checkbox" id="addRuby" name="addRuby" checked>
+                </div>
+                <div class="input-group">
+                    <label for="addTitle">Add title column?</label>
+                    <input type="checkbox" id="addTitle" name="addTitle">
+                    <label for="titleColumnIdx">Column index</label>
+                    <input type="number" id="titleColumnIdx" name="titleColumnIdx" value="1" step="1" min="1" disabled>
+                    <label for="titleHeight">Title length</label>
+                    <input type="number" id="titleHeight" name="titleHeight" value="1" step="1" min="1" disabled>
+                </div>
+                <div class="input-group">
+                    <label for="strokeWidth">Stroke Width (%)</label>
+                    <input type="number" id="strokeWidth" name="strokeWidth" value="0.02" step="0.01" min="0" max="1">
+                </div>
+
+                <div class="code-output">
+                    <button type="button" class="copy-btn" id="copyBtn">Copy SVG</button>
+                    <button type="button" id="downloadBtn">Download SVG</button>
+                </div>
+            </fieldset>
+        </form>
+        <hr>
+        <span>Cells: <span id="nCells"></span></span>
+        <output class="preview-area" id="previewContainer" for="pageType margin innerSize strokeWidth">
+            <!-- SVG will be injected here -->
+        </output>
+    </main>
+
+    <script type="module">
+        import { generatePage } from './svg.js';
+        import { SpacingRectangle, Box } from './geometry.js';
+
+        const pageType = document.getElementById('pageType');
+        const marginInput = document.getElementById('margin');
+
+        const innerSizeInput = document.getElementById('innerSize');
+        const gridStyleInput = document.getElementById('gridStyle');
+        const addRubyInput = document.getElementById('addRuby');
+
+        const strokeInput = document.getElementById('strokeWidth');
+
+        const addTitleInput = document.getElementById('addTitle');
+        const titleColumnIdxInput = document.getElementById('titleColumnIdx');
+        const titleHeightInput = document.getElementById('titleHeight');
+
+        const addCrossInput = document.querySelector('input[name="addCross"]');
+        const addThirdsInput = document.querySelector('input[name="addThirds"]');
+        const addBoxInput = document.querySelector('input[name="addBox"]');
+        const addDiagonalInput = document.querySelector('input[name="addDiagonal"]');
+
+        const previewContainer = document.getElementById('previewContainer');
+        const copyBtn = document.getElementById('copyBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const nCells = document.getElementById('nCells');
+
+        function update() {
+            // Inputs
+            const [pageHeight, pageWidth] = pageType.value.split(';').map(parseFloat);
+
+            let boxMargin = new SpacingRectangle(0);
+            if (addRubyInput.checked) {
+                boxMargin = new SpacingRectangle(0, 0, 0, 0.5);
+            }
+            const innerSize = parseFloat(innerSizeInput.value);
+            const strokeRelativeWidth = parseFloat(strokeInput.value);
+            const boxSize = new Box(
+                innerSize,
+                innerSize,
+                boxMargin,
+                new SpacingRectangle(0),
+                innerSize * strokeRelativeWidth
+            );
+
+            const pageGeometry = new Box(pageWidth, pageHeight, new SpacingRectangle(parseFloat(marginInput.value)));
+
+            const state = {
+                boxSize,
+                boxStyle: gridStyleInput.value,
+                addCross: addCrossInput.checked,
+                addDiagonal: addDiagonalInput.checked,
+                addThirds: addThirdsInput.checked,
+                addBox: addBoxInput.checked,
+                pageGeometry,
+                titleColumnIdx: parseInt(titleColumnIdxInput.value),
+                hasTitle: addTitleInput.checked,
+                titleLength: parseInt(titleHeightInput.value),
+            };
+
+            const { svg: svgContent, nColumns, nRows } = generatePage(state);
+            previewContainer.innerHTML = svgContent;
+            nCells.textContent = `${nColumns} x ${nRows}`;
+            titleColumnIdxInput.max = nColumns;
+            titleHeightInput.max = nRows - 1;
+            document.documentElement.style.setProperty("--page-width", pageWidth);
+            document.documentElement.style.setProperty("--page-height", pageHeight);
+            return svgContent;
+        }
+
+        pageType.addEventListener('change', update);
+        marginInput.addEventListener('input', update);
+
+        innerSizeInput.addEventListener('input', update);
+        gridStyleInput.addEventListener('input', update);
+        addRubyInput.addEventListener('input', update);
+
+        strokeInput.addEventListener('input', update);
+
+        addCrossInput.addEventListener('change', update);
+        addThirdsInput.addEventListener('change', update);
+        addBoxInput.addEventListener('change', update);
+        addDiagonalInput.addEventListener('change', update);
+
+        addTitleInput.addEventListener('input', update);
+        addTitleInput.addEventListener('input', () => {
+            titleColumnIdxInput.disabled = !addTitleInput.checked;
+            titleHeightInput.disabled = !addTitleInput.checked;
+        });
+        titleColumnIdxInput.addEventListener('input', update);
+        titleHeightInput.addEventListener('input', update);
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(update());
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => copyBtn.textContent = 'Copy SVG', 2000);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const svgContent = update();
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const temporaryLink = document.createElement('a');
+            temporaryLink.href = url;
+            temporaryLink.download = 'hanzi-grid.svg';
+            temporaryLink.click();
+            URL.revokeObjectURL(url);
+            temporaryLink.remove();
+        });
+
+        update();
+    </script>
+</body>
+
+</html>
