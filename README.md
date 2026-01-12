@@ -21,7 +21,6 @@ A simple web-based tool for generating customizable Genkouyoushi grids in SVG fo
 
 ## Under construction and bugs
 
-- Title columns don't play nice with arbitrary margins around grids; currently only works with ruby margins and no margins.
 - Not all features implemented in code are accessible in the front-end.
 - No option for horizontal writing.
 

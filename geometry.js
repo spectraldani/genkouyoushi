@@ -1,6 +1,6 @@
 "use strict";
 export class SpacingRectangle {
-    constructor(first, second = undefined, third = undefined, fourth = undefined) {
+    constructor(first = 0, second = undefined, third = undefined, fourth = undefined) {
         if (second === undefined) {
             this.top = this.bottom = this.left = this.right = first;
         } else if (third === undefined) {
@@ -8,21 +8,29 @@ export class SpacingRectangle {
             this.left = this.right = second;
         } else if (fourth === undefined) {
             this.top = first;
-            this.bottom = second;
-            this.left = this.right = third;
+            this.left = this.right = second;
+            this.bottom = third;
         } else {
             this.top = first;
-            this.bottom = second;
-            this.left = third;
-            this.right = fourth;
+            this.right = second;
+            this.bottom = third;
+            this.left = fourth;
         }
     }
 
-    get horizontal() {
+    get totalHorizontal() {
+        return this.left + this.right;
+    }
+
+    get mergedHorizontal() {
         return Math.max(this.left, this.right);
     }
 
-    get vertical() {
+    get totalVertical() {
+        return this.top + this.bottom;
+    }
+
+    get mergedVertical() {
         return Math.max(this.top, this.bottom);
     }
 }
@@ -47,13 +55,11 @@ export class Box {
     }
 
     get innerOrigin() {
-        return [this.strokeWidth/2 + this.padding.left, this.strokeWidth/2 + this.padding.top];
+        return [this.strokeWidth / 2 + this.padding.left, this.strokeWidth / 2 + this.padding.top];
     }
 
     get innerEnd() {
-        return [
-            this.width - this.strokeWidth/2 - this.padding.right,
-            this.height - this.strokeWidth/2 - this.padding.bottom
-        ];
+        const innerOrigin = this.innerOrigin;
+        return [innerOrigin[0] + this.width, innerOrigin[1] + this.height];
     }
 }

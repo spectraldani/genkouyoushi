@@ -27,8 +27,8 @@
 <body>
     <main>
         <form>
-            <fieldset name="fieldset">
-                <legend>Grid Settings</legend>
+            <fieldset>
+                <legend>Page</legend>
                 <div class="input-group">
                     <label for="pageType">Page Type</label>
                     <select id="pageType" name="pageType">
@@ -39,17 +39,36 @@
                     </select>
                 </div>
                 <div class="input-group">
-                    <label for="margin">Margin (mm)</label>
-                    <input type="number" id="margin" name="margin" value="20" step="1" min="0">
+                    <label>Margin (top right bottom left) (mm)</label>
+                    <input type="number" id="marginTop" name="marginTop" value="20" step="1" min="0">
+                    <input type="number" id="marginRight" name="marginRight" value="20" step="1" min="0">
+                    <input type="number" id="marginBottom" name="marginBottom" value="20" step="1" min="0">
+                    <input type="number" id="marginLeft" name="marginLeft" value="20" step="1" min="0">
                 </div>
+            </fieldset>
+            <fieldset>
+                <legend>Grid </legend>
                 <div class="input-group">
                     <label for="innerSize">Inner Size (mm)</label>
                     <input type="number" id="innerSize" name="innerSize" value="8.0" step="0.1" min="0">
+                    <label>Margin (top right bottom left) (%)</label>
+                    <input type="number" id="boxMarginTop" name="boxMarginTop" value="0" step="0.1" min="0" max="1">
+                    <input type="number" id="boxMarginRight" name="boxMarginRight" value="0.5" step="0.1" min="0"
+                        max="1">
+                    <input type="number" id="boxMarginBottom" name="boxMarginBottom" value="0" step="0.1" min="0"
+                        max="1">
+                    <input type="number" id="boxMarginLeft" name="boxMarginLeft" value="0" step="0.1" min="0" max="1">
+                </div>
+                <div class="input-group">
+                    <label for="mainStrokeColor">Main stroke color</label>
+                    <input type="color" id="mainStrokeColor" name="mainStrokeColor" value="#000000">
+                    <label for="strokeWidth">Stroke Width (%)</label>
+                    <input type="number" id="strokeWidth" name="strokeWidth" value="0.02" step="0.01" min="0" max="1">
                     <label for="gridStyle">Style</label>
                     <select id="gridStyle" name="gridStyle">
                         <option value="none">无</option>
-                        <option value="ruled">竖</option>
                         <option value="grid" selected>方</option>
+                        <option value="ruled">竖</option>
                     </select>
                     <label for="addCross">Cross:</label>
                     <input type="checkbox" id="addCross" name="addCross" checked>
@@ -59,31 +78,27 @@
                     <input type="checkbox" id="addThirds" name="addThirds">
                     <label for="addBox">Box:</label>
                     <input type="checkbox" id="addBox" name="addBox">
-                    <label for="addRuby">Add ruby column?</label>
-                    <input type="checkbox" id="addRuby" name="addRuby" checked>
                 </div>
                 <div class="input-group">
-                    <label for="addTitle">Add title column?</label>
-                    <input type="checkbox" id="addTitle" name="addTitle">
-                    <label for="titleColumnIdx">Column index</label>
-                    <input type="number" id="titleColumnIdx" name="titleColumnIdx" value="1" step="1" min="1" disabled>
+                    <label for="titleColumnIdx">Add title column?</label>
+                    <select id="titleColumnIdx" name="titleColumnIdx">
+                        <option value="none" selected>None</option>
+                        <option value="start">Start</option>
+                        <option value="middle">Middle</option>
+                        <option value="end">End</option>
+                    </select>
                     <label for="titleHeight">Title length</label>
                     <input type="number" id="titleHeight" name="titleHeight" value="1" step="1" min="1" disabled>
                 </div>
-                <div class="input-group">
-                    <label for="strokeWidth">Stroke Width (%)</label>
-                    <input type="number" id="strokeWidth" name="strokeWidth" value="0.02" step="0.01" min="0" max="1">
-                </div>
-
-                <div class="code-output">
-                    <button type="button" class="copy-btn" id="copyBtn">Copy SVG</button>
-                    <button type="button" id="downloadBtn">Download SVG</button>
-                </div>
             </fieldset>
+            <div class="code-output">
+                <button type="button" class="copy-btn" id="copyBtn">Copy SVG</button>
+                <button type="button" id="downloadBtn">Download SVG</button>
+            </div>
         </form>
         <hr>
         <span>Cells: <span id="nCells"></span></span>
-        <output class="preview-area" id="previewContainer" for="pageType margin innerSize strokeWidth">
+        <output class="preview-area" id="previewContainer">
             <!-- SVG will be injected here -->
         </output>
     </main>
@@ -92,23 +107,8 @@
         import { generatePage } from './svg.js';
         import { SpacingRectangle, Box } from './geometry.js';
 
-        const pageType = document.getElementById('pageType');
-        const marginInput = document.getElementById('margin');
-
-        const innerSizeInput = document.getElementById('innerSize');
-        const gridStyleInput = document.getElementById('gridStyle');
-        const addRubyInput = document.getElementById('addRuby');
-
-        const strokeInput = document.getElementById('strokeWidth');
-
-        const addTitleInput = document.getElementById('addTitle');
         const titleColumnIdxInput = document.getElementById('titleColumnIdx');
         const titleHeightInput = document.getElementById('titleHeight');
-
-        const addCrossInput = document.querySelector('input[name="addCross"]');
-        const addThirdsInput = document.querySelector('input[name="addThirds"]');
-        const addBoxInput = document.querySelector('input[name="addBox"]');
-        const addDiagonalInput = document.querySelector('input[name="addDiagonal"]');
 
         const previewContainer = document.getElementById('previewContainer');
         const copyBtn = document.getElementById('copyBtn');
@@ -117,68 +117,60 @@
 
         function update() {
             // Inputs
-            const [pageHeight, pageWidth] = pageType.value.split(';').map(parseFloat);
+            const formState = Object.fromEntries(new FormData(document.forms[0]).entries());
 
-            let boxMargin = new SpacingRectangle(0);
-            if (addRubyInput.checked) {
-                boxMargin = new SpacingRectangle(0, 0, 0, 0.5);
-            }
-            const innerSize = parseFloat(innerSizeInput.value);
-            const strokeRelativeWidth = parseFloat(strokeInput.value);
+            const [pageHeight, pageWidth] = formState.pageType.split(';').map(parseFloat);
+            const innerSize = parseFloat(formState.innerSize);
+            const boxMargin = new SpacingRectangle(
+                innerSize * parseFloat(formState.boxMarginTop),
+                innerSize * parseFloat(formState.boxMarginRight),
+                innerSize * parseFloat(formState.boxMarginBottom),
+                innerSize * parseFloat(formState.boxMarginLeft)
+            );
+            const strokeRelativeWidth = parseFloat(formState.strokeWidth);
             const boxSize = new Box(
                 innerSize,
                 innerSize,
                 boxMargin,
-                new SpacingRectangle(0),
+                new SpacingRectangle(),
                 innerSize * strokeRelativeWidth
             );
 
-            const pageGeometry = new Box(pageWidth, pageHeight, new SpacingRectangle(parseFloat(marginInput.value)));
+            const pageGeometry = new Box(
+                pageWidth, pageHeight,
+                new SpacingRectangle(),
+                new SpacingRectangle(parseFloat(formState.marginTop), parseFloat(formState.marginRight), parseFloat(formState.marginBottom), parseFloat(formState.marginLeft))
+            );
 
             const state = {
                 boxSize,
-                boxStyle: gridStyleInput.value,
-                addCross: addCrossInput.checked,
-                addDiagonal: addDiagonalInput.checked,
-                addThirds: addThirdsInput.checked,
-                addBox: addBoxInput.checked,
+                mainStrokeColor: formState.mainStrokeColor,
+                boxStyle: formState.gridStyle,
+                addCross: formState.addCross === 'on',
+                addDiagonal: formState.addDiagonal === 'on',
+                addThirds: formState.addThirds === 'on',
+                addBox: formState.addBox === 'on',
                 pageGeometry,
-                titleColumnIdx: parseInt(titleColumnIdxInput.value),
-                hasTitle: addTitleInput.checked,
-                titleLength: parseInt(titleHeightInput.value),
+                titleColumn: formState.titleColumnIdx,
+                titleLength: parseInt(formState.titleHeight),
             };
 
             const { svg: svgContent, nColumns, nRows } = generatePage(state);
             previewContainer.innerHTML = svgContent;
             nCells.textContent = `${nColumns} x ${nRows}`;
-            titleColumnIdxInput.max = nColumns;
             titleHeightInput.max = nRows - 1;
             document.documentElement.style.setProperty("--page-width", pageWidth);
             document.documentElement.style.setProperty("--page-height", pageHeight);
             return svgContent;
         }
 
-        pageType.addEventListener('change', update);
-        marginInput.addEventListener('input', update);
-
-        innerSizeInput.addEventListener('input', update);
-        gridStyleInput.addEventListener('input', update);
-        addRubyInput.addEventListener('input', update);
-
-        strokeInput.addEventListener('input', update);
-
-        addCrossInput.addEventListener('change', update);
-        addThirdsInput.addEventListener('change', update);
-        addBoxInput.addEventListener('change', update);
-        addDiagonalInput.addEventListener('change', update);
-
-        addTitleInput.addEventListener('input', update);
-        addTitleInput.addEventListener('input', () => {
-            titleColumnIdxInput.disabled = !addTitleInput.checked;
-            titleHeightInput.disabled = !addTitleInput.checked;
+        titleColumnIdxInput.addEventListener('change', () => {
+            titleHeightInput.disabled = titleColumnIdxInput.value === 'none';
         });
-        titleColumnIdxInput.addEventListener('input', update);
-        titleHeightInput.addEventListener('input', update);
+
+        document.querySelectorAll('form input, form select').forEach(input => {
+            input.addEventListener('change', update);
+        });
 
         copyBtn.addEventListener('click', () => {
             navigator.clipboard.writeText(update());
