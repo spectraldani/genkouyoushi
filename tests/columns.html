@@ -11,13 +11,13 @@
     </svg>
     <script type="module">
         import { Box, SpacingRectangle } from "../geometry.js";
-        import { makeHanziBox as makeHanziBoxOG, makeLine, makeBox } from "../svg.js"
+        import { makeHanziBox as makeHanziBoxOG, makeLine, makeBox, makeColumn } from "../svg.js"
 
         const svg = document.querySelector('svg');
         const SVG_NS = "http://www.w3.org/2000/svg";
 
         const gridSize = 5;
-        const testWidth = 220;
+        const testWidth = gridSize * 53;
         const testHeight = gridSize * 61;
         {
             const g = document.createElementNS(SVG_NS, "g");
@@ -48,20 +48,20 @@
         const testBoxFill1 = "color(srgb 1 1 0 / 0.5)"
         const testBoxFill2 = "color(srgb 0 0.66 0.96 / 0.5)"
 
-        const makeHanziBox = (box) => makeHanziBoxOG(
-            box, nDashesStraight, nDashesDiagonal, "black", "#aaaaaa",
-            true, false, false, false
+        const makeHanziBox = (box, isEnclosed, addBottomLine = false) => makeHanziBoxOG(
+            box, isEnclosed, nDashesStraight, nDashesDiagonal, "black", "#aaaaaa",
+            true, false, false, false, addBottomLine
         );
 
         /* Merge outline test */{
             const box = baseBox.clone();
             box.margin = new SpacingRectangle(0);
-            const nRows = 4;
+            const nRows = 5;
 
             // Merge outlines of boxes
             let [x, y] = origin;
             for (let i = 0; i < nRows; i++) {
-                const hanziBox = makeHanziBox(box);
+                const hanziBox = makeHanziBox(box, false, i < nRows - 1);
                 hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
                 svg.appendChild(hanziBox);
                 y += box.outerHeight - box.strokeWidth;
@@ -94,9 +94,19 @@
             let [x, y] = origin;
             y += box.margin.top;
             for (let i = 0; i < nRows; i++) {
-                const hanziBox = makeHanziBox(box);
+                const hanziBox = makeHanziBox(box, true, false);
                 hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
                 svg.appendChild(hanziBox);
+                y += box.outerHeight + box.margin.mergedVertical;
+            }
+
+            // Inner boxes shouldn't overlap
+            const innerBox = new Box(box.innerWidth, box.innerHeight);
+            [x, y] = origin;
+            x += box.strokeWidth;
+            y += box.margin.top + box.strokeWidth;
+            for (let i = 0; i < nRows; i++) {
+                svg.appendChild(makeBox(innerBox, x, y, "none", testBoxFill1))
                 y += box.outerHeight + box.margin.mergedVertical;
             }
 
@@ -116,46 +126,48 @@
         const boardHeight = (testHeight - 2 * gridSize);
         /* Outline and margins test */ {
             const box = baseBox.clone();
-            // box.margin = new SpacingRectangle(1 * gridSize, 0, 2 * gridSize, 0);
+            const [column, columnOuterHeight] = makeColumn(
+                boardHeight, box,
+                (x, y, isLast) => {
+                    const hanziBox = makeHanziBox(box, box.margin.mergedVertical > 0, !isLast);
+                    hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+                    return hanziBox;
+                }
+            );
 
-            const isEnclosed = box.margin.mergedVertical > 0;
-
-            // If enclosed, add outer vertical outlines
-            const outerVerticalOutline = isEnclosed ? box.strokeWidth : 0;
-            // If not enclosed, merge inner vertical outlines
-            const innerStrokeContribution = !isEnclosed ? box.strokeWidth : 0;
-
-
-            const columnHeightFixed = (
-                outerVerticalOutline
-                + box.margin.top
-                - (box.margin.mergedVertical - innerStrokeContribution)
-                + box.margin.bottom
-                + outerVerticalOutline
-            )
-            const columnHeightVariable = (
-                box.outerHeight + (box.margin.mergedVertical - innerStrokeContribution)
-            )
-
-            const nRows = Math.floor((boardHeight - columnHeightFixed) / columnHeightVariable);
             const boardBox = new Box(box.innerWidth, undefined);
             boardBox.strokeWidth = gridSize;
-            boardBox.outerHeight = columnHeightFixed + nRows * columnHeightVariable;
+            boardBox.outerHeight = columnOuterHeight;
             svg.appendChild(makeBox(boardBox, origin[0], origin[1], "black", "none"))
 
-            // Place boxes
-            let [x, y] = origin;
-            y += box.margin.top + outerVerticalOutline;
+            column.setAttribute("transform", `translate(${origin[0]}, ${origin[1]})`);
+            svg.appendChild(column);
 
-            for (let i = 0; i < nRows; i++) {
-                const hanziBox = makeHanziBox(box);
-                hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
-                svg.appendChild(hanziBox);
-                y += box.outerHeight + box.margin.mergedVertical - innerStrokeContribution;
-                if (!isEnclosed && i < nRows - 1) {
-                    svg.appendChild(makeLine(x, y + box.strokeWidth / 2, x + box.outerWidth, y + box.strokeWidth / 2, nDashesStraight, "#aaaaaa", box.strokeWidth))
+            svg.appendChild(makeBox(new Box(box.outerWidth, boardBox.outerHeight), origin[0], origin[1], "none", testBoxFill1));
+            svg.appendChild(makeBox(new Box(box.outerWidth, boardHeight), origin[0], origin[1], "none", testBoxFill2));
+        }
+
+        origin[0] += baseBox.outerWidth + 5;
+        /* Outline and margins test */ {
+            const box = baseBox.clone();
+            box.margin = new SpacingRectangle(1 * gridSize, 0, 2 * gridSize, 0);
+
+            const [column, columnOuterHeight] = makeColumn(
+                boardHeight, box,
+                (x, y, isLast) => {
+                    const hanziBox = makeHanziBox(box, box.margin.mergedVertical > 0, !isLast);
+                    hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+                    return hanziBox;
                 }
-            }
+            );
+
+            const boardBox = new Box(box.innerWidth, undefined);
+            boardBox.strokeWidth = gridSize;
+            boardBox.outerHeight = columnOuterHeight;
+            svg.appendChild(makeBox(boardBox, origin[0], origin[1], "black", "none"))
+
+            column.setAttribute("transform", `translate(${origin[0]}, ${origin[1]})`);
+            svg.appendChild(column);
 
             svg.appendChild(makeBox(new Box(box.outerWidth, boardBox.outerHeight), origin[0], origin[1], "none", testBoxFill1));
             svg.appendChild(makeBox(new Box(box.outerWidth, boardHeight), origin[0], origin[1], "none", testBoxFill2));

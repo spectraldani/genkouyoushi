@@ -4,10 +4,10 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 import { Box, SpacingRectangle } from "./geometry.js";
 
 /**
- * @param {number} x0
- * @param {number} y0
- * @param {number} x1
- * @param {number} y1
+ * @param {number} x0 - x coordinate of the start point
+ * @param {number} y0 - y coordinate of the center of the start point
+ * @param {number} x1 - x coordinate of the end point
+ * @param {number} y1 - y coordinate of the center of the end point
  * @param {number} nDashes - number of dashes (must be >= 0)
  * @param {string | undefined} strokeColor - CSS color string
  * @returns {SVGElement} SVG element
@@ -34,34 +34,94 @@ export function makeLine(x0, y0, x1, y1, nDashes = 0, strokeColor = undefined, s
 }
 
 /**
- * Creates an SVG rectangle element representing this box.
+ * Creates an SVG rectangle element representing the given box, margins ignored.
  * @param {Box} box
  * @param {number} x - x coordinate of the upper-left outer corner
  * @param {number} y - y coordinate of the upper-left outer corner
- * @param {string} strokeColor
- * @param {string} fillColor
- * @returns {SVGRectElement}
+ * @param {string | undefined} strokeColor
+ * @param {string | undefined} fillColor
+ * @param {[boolean, boolean, boolean, boolean] | undefined} sides - [top, right, bottom, left]
+ * @returns {SVGGElement | SVGRectElement}
  */
-export function makeBox(box, x = 0, y = 0, strokeColor = "black", fillColor = "none") {
+export function makeBox(
+    box,
+    x = 0,
+    y = 0,
+    strokeColor = undefined,
+    fillColor = undefined,
+    sides = [true, true, true, true]
+) {
     if (box.svgHeight <= 0 || box.svgWidth <= 0)
-        return document.createElementNS(SVG_NS, "rect");
-    const rect = document.createElementNS(SVG_NS, "rect");
-    const svgX = x + box.strokeWidth / 2;
-    const svgY = y + box.strokeWidth / 2;
-    rect.setAttribute("x", svgX.toFixed(4));
-    rect.setAttribute("y", svgY.toFixed(4));
-    rect.setAttribute("fill", fillColor);
-    rect.setAttribute("stroke", strokeColor);
-    rect.setAttribute("width", box.svgWidth.toFixed(4));
-    rect.setAttribute("height", box.svgHeight.toFixed(4));
-    rect.setAttribute("stroke-width", box.strokeWidth.toFixed(4));
-    return rect;
+        return document.createElementNS(SVG_NS, "g");
+
+    if (sides.every(x => x)) {
+        const rect = document.createElementNS(SVG_NS, "rect");
+        const svgX = x + box.strokeWidth / 2;
+        const svgY = y + box.strokeWidth / 2;
+        rect.setAttribute("x", svgX.toFixed(4));
+        rect.setAttribute("y", svgY.toFixed(4));
+        rect.setAttribute("width", box.svgWidth.toFixed(4));
+        rect.setAttribute("height", box.svgHeight.toFixed(4));
+
+        if (fillColor !== undefined)
+            rect.setAttribute("fill", fillColor);
+        if (strokeColor !== undefined)
+            rect.setAttribute("stroke", strokeColor);
+        rect.setAttribute("stroke-width", box.strokeWidth.toFixed(4));
+        return rect;
+    } else {
+        const [hasTop, hasRight, hasBottom, hasLeft] = sides;
+        const group = document.createElementNS(SVG_NS, "g");
+        if (strokeColor !== undefined)
+            group.setAttribute("stroke", strokeColor);
+        group.setAttribute("stroke-width", box.strokeWidth.toFixed(4));
+
+        if (hasLeft)
+            group.appendChild(makeLine(
+                x + box.strokeWidth / 2, y,
+                x + box.strokeWidth / 2, y + box.outerHeight,
+                0
+            ));
+        if (hasRight)
+            group.appendChild(makeLine(
+                x + box.outerWidth - box.strokeWidth / 2, y,
+                x + box.outerWidth - box.strokeWidth / 2, y + box.outerHeight,
+                0
+            ));
+
+        if (hasTop)
+            group.appendChild(makeLine(
+                x, y + box.strokeWidth / 2,
+                x + box.outerWidth, y + box.strokeWidth / 2,
+                0
+            ));
+        if (hasBottom)
+            group.appendChild(makeLine(
+                x, y + box.outerHeight - box.strokeWidth / 2,
+                x + box.outerWidth, y + box.outerHeight - box.strokeWidth / 2,
+                0,
+            ));
+
+        if (fillColor !== undefined && fillColor !== "none") {
+            const rect = document.createElementNS(SVG_NS, "rect");
+            const [x0, y0] = box.innerOrigin;
+            rect.setAttribute("x", (x + x0).toFixed(4));
+            rect.setAttribute("y", (y + y0).toFixed(4));
+            rect.setAttribute("width", box.innerWidth.toFixed(4));
+            rect.setAttribute("height", box.innerHeight.toFixed(4));
+            rect.setAttribute("fill", fillColor);
+            rect.setAttribute("stroke", "none");
+            group.appendChild(rect);
+        }
+        return group;
+    }
 }
 
 /**
- * @param {Box} boxSize
- * @param {number} nDashesStraight
- * @param {number} nDashesDiag
+ * Creates an SVG group element representing the hanzi box fitting the given box.
+ * @param {Box} box - the box to fit the hanzi box into, margins ignored
+ * @param {number} nDashesStraight - number of dashes for straight lines
+ * @param {number} nDashesDiag - number of dashes for diagonal lines
  * @param {string} mainStrokeColor
  * @param {string} innerColor
  * @param {boolean} addCross
@@ -71,7 +131,8 @@ export function makeBox(box, x = 0, y = 0, strokeColor = "black", fillColor = "n
  * @returns {SVGGElement}
  */
 export function makeHanziBox(
-    boxSize,
+    box,
+    isEnclosed,
     nDashesStraight,
     nDashesDiag,
     mainStrokeColor,
@@ -79,13 +140,14 @@ export function makeHanziBox(
     addCross,
     addDiagonal,
     addThirds,
-    addBox
+    addBox,
+    addBottomLine
 ) {
-    const [x0, y0] = boxSize.innerOrigin;
-    const [x1, y1] = boxSize.innerEnd;
-    const innerWidth = boxSize.innerWidth;
-    const innerHeight = boxSize.innerHeight;
-    const strokeWidth = boxSize.strokeWidth;
+    const [x0, y0] = box.innerOrigin;
+    const [x1, y1] = box.innerEnd;
+    const innerWidth = box.innerWidth;
+    const innerHeight = box.innerHeight;
+    const strokeWidth = box.strokeWidth;
 
     const boxElement = document.createElementNS(SVG_NS, "g");
     boxElement.setAttribute("stroke", mainStrokeColor);
@@ -131,7 +193,6 @@ export function makeHanziBox(
         rect.setAttribute("height", len.toFixed(4));
         rect.setAttribute("fill", "none");
         rect.setAttribute("stroke", innerColor);
-        rect.setAttribute("stroke-width", strokeWidth.toFixed(4));
         // TODO fix dash calculation
         const dashLen = len / (nDashesStraight / 2);
         rect.setAttribute("stroke-dasharray", dashLen.toFixed(10));
@@ -139,15 +200,61 @@ export function makeHanziBox(
         boxElement.appendChild(rect);
     }
 
-    if (boxSize.margin.mergedVertical === 0) {
-        const [x0, y0] = [strokeWidth / 2, 0];
-        const [x1, y1] = [boxSize.outerWidth - strokeWidth / 2, boxSize.outerHeight];
-        boxElement.appendChild(makeLine(x0, y0, x0, y1));
-        boxElement.appendChild(makeLine(x1, y0, x1, y1));
-    } else {
-        boxElement.appendChild(makeBox(boxSize, 0, 0, mainStrokeColor, "none"));
+    console.log(addBottomLine)
+    if (!isEnclosed && addBottomLine) {
+        boxElement.appendChild(makeLine(
+            x0,
+            box.outerHeight - box.strokeWidth / 2,
+            x1,
+            box.outerHeight - box.strokeWidth / 2,
+            nDashesStraight, innerColor, box.strokeWidth
+        ))
     }
-    return boxElement
+
+    boxElement.appendChild(makeBox(
+        box, 0, 0, undefined, "none", !isEnclosed ? [false, true, false, true] : undefined
+    ));
+    return boxElement;
+}
+
+/**
+ * 
+ * @param {number} availableHeight 
+ * @param {Box} box 
+ * @param {function(number, number, boolean): SVGGElement} boxMaker 
+ * @returns {[SVGGElement, number]} The group element and the total height of the column
+ */
+export function makeColumn(availableHeight, box, boxMaker) {
+    const g = document.createElementNS(SVG_NS, "g");
+    const isEnclosed = box.margin.mergedVertical > 0;
+
+    // If enclosed, add outer vertical outlines
+    const outerVerticalOutline = isEnclosed ? box.strokeWidth : 0;
+    // If not enclosed, merge inner vertical outlines
+    const innerStrokeContribution = !isEnclosed ? box.strokeWidth : 0;
+
+
+    const columnHeightFixed = (
+        outerVerticalOutline
+        + box.margin.top
+        - (box.margin.mergedVertical - innerStrokeContribution)
+        + box.margin.bottom
+        + outerVerticalOutline
+    )
+    const columnHeightVariable = (
+        box.outerHeight + (box.margin.mergedVertical - innerStrokeContribution)
+    )
+
+    const nRows = Math.floor((availableHeight - columnHeightFixed) / columnHeightVariable);
+    // Place boxes
+    let [x, y] = [0, 0];
+    y += box.margin.top + outerVerticalOutline;
+
+    for (let i = 0; i < nRows; i++) {
+        g.appendChild(boxMaker(x, y, i === nRows - 1));
+        y += box.outerHeight + box.margin.mergedVertical - innerStrokeContribution;
+    }
+    return [g, columnHeightFixed + columnHeightVariable * nRows];
 }
 
 /**
