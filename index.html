@@ -33,9 +33,10 @@
                     <label for="pageType">Page Type</label>
                     <select id="pageType" name="pageType">
                         <option value="215.9;279.4">Letter</option>
-                        <option selected value="210;297">A4</option>
+                        <option value="210;297">A4</option>
                         <option value="175.2;250">B5</option>
                         <option value="148;210">A5</option>
+                        <option value="150;150" selected>test</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -47,10 +48,10 @@
                 </div>
             </fieldset>
             <fieldset>
-                <legend>Grid </legend>
+                <legend>Grid</legend>
                 <div class="input-group">
                     <label for="innerSize">Inner Size (mm)</label>
-                    <input type="number" id="innerSize" name="innerSize" value="8.0" step="0.1" min="0">
+                    <input type="number" id="innerSize" name="innerSize" value="14" step="0.1" min="0">
                     <label>Margin (top right bottom left) (%)</label>
                     <input type="number" id="boxMarginTop" name="boxMarginTop" value="0" step="0.1" min="0" max="1">
                     <input type="number" id="boxMarginRight" name="boxMarginRight" value="0.5" step="0.1" min="0"
@@ -82,8 +83,8 @@
                 <div class="input-group">
                     <label for="titleColumnIdx">Add title column?</label>
                     <select id="titleColumnIdx" name="titleColumnIdx">
-                        <option value="none" selected>None</option>
-                        <option value="start">Start</option>
+                        <option value="none">None</option>
+                        <option value="start" selected>Start</option>
                         <option value="middle">Middle</option>
                         <option value="end">End</option>
                     </select>
@@ -136,10 +137,14 @@
                 innerSize * strokeRelativeWidth
             );
 
+            const pagePadding = new SpacingRectangle(
+                parseFloat(formState.marginTop), parseFloat(formState.marginRight),
+                parseFloat(formState.marginBottom), parseFloat(formState.marginLeft)
+            );
             const pageGeometry = new Box(
-                pageWidth, pageHeight,
+                pageWidth - pagePadding.totalHorizontal, pageHeight - pagePadding.totalVertical,
                 new SpacingRectangle(),
-                new SpacingRectangle(parseFloat(formState.marginTop), parseFloat(formState.marginRight), parseFloat(formState.marginBottom), parseFloat(formState.marginLeft))
+                pagePadding
             );
 
             const state = {
@@ -150,7 +155,7 @@
                 addDiagonal: formState.addDiagonal === 'on',
                 addThirds: formState.addThirds === 'on',
                 addBox: formState.addBox === 'on',
-                pageGeometry,
+                page: pageGeometry,
                 titleColumn: formState.titleColumnIdx,
                 titleLength: parseInt(formState.titleHeight),
             };
