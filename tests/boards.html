@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test columns</title>
+</head>
+
+<body>
+    <svg width="800" height="800" xmlns="http://www.w3.org/2000/svg" style="display: block;margin: 0 auto;">
+    </svg>
+    <script type="module">
+        import { Box, SpacingRectangle } from "../geometry.js";
+        import { makeHanziBox as makeHanziBoxOG, makeLine, makeBox, makeColumn, makeBoard } from "../svg.js"
+
+        const svg = document.querySelector('svg');
+        const SVG_NS = "http://www.w3.org/2000/svg";
+
+        const gridSize = 5;
+        const testWidth = gridSize * 53;
+        const testHeight = gridSize * 61;
+        {
+            const g = document.createElementNS(SVG_NS, "g");
+            const strokeColor = "#aaaaaa";
+            svg.setAttribute("viewBox", `0 0 ${testWidth} ${testHeight}`);
+            svg.appendChild(g);
+            g.setAttribute("stroke-width", (gridSize / 20).toFixed(4));
+            for (let i = 0; i <= testWidth / gridSize; i++) {
+                g.appendChild(makeLine(
+                    i * gridSize, 0, i * gridSize, testHeight, 0,
+                    strokeColor
+                ));
+            }
+            for (let i = 0; i <= testHeight / gridSize; i++) {
+                g.appendChild(makeLine(
+                    0, i * gridSize, testWidth, i * gridSize, 0,
+                    strokeColor
+                ));
+            }
+        }
+
+        let origin = [5, 5];
+        const baseBox = new Box(10 * gridSize, 10 * gridSize);
+        baseBox.strokeWidth = gridSize;
+        const nDashesStraight = 19;
+        const nDashesDiagonal = 25;
+
+        const testBoxFill1 = "color(srgb 1 1 0 / 0.5)"
+        const testBoxFill2 = "color(srgb 0 0.66 0.96 / 0.5)"
+
+        const makeHanziBox = (box, isEnclosed, addBottomLine = false) => makeHanziBoxOG(
+            box, isEnclosed, nDashesStraight, nDashesDiagonal, "black", "#aaaaaa",
+            true, false, false, false, addBottomLine
+        );
+
+        const boardHeight = (testHeight - 2 * gridSize);
+        const boardWidth = (testWidth - 2 * gridSize);
+
+        const box = baseBox.clone();
+        box.margin = new SpacingRectangle(1 * gridSize, 1 * gridSize, 1 * gridSize, 1 * gridSize);
+
+        const [board, boardOuterWidth, boardOuterHeight] = makeBoard(
+            boardWidth, boardHeight, box,
+            (x, y, isLast) => {
+                const hanziBox = makeHanziBox(box, box.margin.mergedVertical > 0, !isLast);
+                hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+                return hanziBox;
+            }
+        )
+        board.setAttribute("transform", `translate(${origin[0]}, ${origin[1]})`);
+        svg.appendChild(board);
+
+        svg.appendChild(makeBox(new Box(boardOuterWidth, boardOuterHeight), origin[0], origin[1], "none", testBoxFill1));
+        svg.appendChild(makeBox(new Box(boardWidth, boardHeight), origin[0], origin[1], "none", testBoxFill2));
+
+    </script>
+</body>
+
+</html>

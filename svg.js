@@ -200,7 +200,6 @@ export function makeHanziBox(
         boxElement.appendChild(rect);
     }
 
-    console.log(addBottomLine)
     if (!isEnclosed && addBottomLine) {
         boxElement.appendChild(makeLine(
             x0,
@@ -233,28 +232,73 @@ export function makeColumn(availableHeight, box, boxMaker) {
     // If not enclosed, merge inner vertical outlines
     const innerStrokeContribution = !isEnclosed ? box.strokeWidth : 0;
 
-
     const columnHeightFixed = (
         outerVerticalOutline
         + box.margin.top
         - (box.margin.mergedVertical - innerStrokeContribution)
         + box.margin.bottom
         + outerVerticalOutline
-    )
+    );
     const columnHeightVariable = (
-        box.outerHeight + (box.margin.mergedVertical - innerStrokeContribution)
-    )
+        box.outerHeight + box.margin.mergedVertical - innerStrokeContribution
+    );
 
     const nRows = Math.floor((availableHeight - columnHeightFixed) / columnHeightVariable);
     // Place boxes
     let [x, y] = [0, 0];
     y += box.margin.top + outerVerticalOutline;
-
     for (let i = 0; i < nRows; i++) {
         g.appendChild(boxMaker(x, y, i === nRows - 1));
-        y += box.outerHeight + box.margin.mergedVertical - innerStrokeContribution;
+        y += columnHeightVariable;
     }
     return [g, columnHeightFixed + columnHeightVariable * nRows];
+}
+
+/**
+ * 
+ * @param {number} availableWidth 
+ * @param {number} availableHeight 
+ * @param {Box} box 
+ * @param {function(number, number, boolean): SVGGElement} boxMaker 
+ * @returns {[SVGGElement, number, number]} The group element, the total width and height of the board
+ */
+export function makeBoard(availableWidth, availableHeight, box, boxMaker) {
+    const g = document.createElementNS(SVG_NS, "g");
+    const [columnGroup, usedHeight] = makeColumn(availableHeight, box, boxMaker);
+
+    const outerLeftOutline = box.margin.left > 0 ? box.strokeWidth : 0;
+    const outerRightOutline = box.margin.right > 0 ? box.strokeWidth : 0;
+    const innerStrokeContribution = box.margin.mergedHorizontal === 0 ? box.strokeWidth : 0;
+
+    const columnWidthFixed = (
+        outerLeftOutline
+        + box.margin.left
+        - (box.margin.mergedHorizontal - innerStrokeContribution)
+        + box.margin.right
+        + outerRightOutline
+    );
+    const columnWidthVariable = (
+        box.outerWidth + box.margin.mergedHorizontal - innerStrokeContribution
+    );
+
+    const nColumns = Math.floor((availableWidth - columnWidthFixed) / columnWidthVariable);
+    const usedWidth = columnWidthFixed + columnWidthVariable * nColumns;
+    // Place columns
+    let [x, y] = [0, 0];
+    x += box.margin.left + outerLeftOutline;
+    for (let i = 0; i < nColumns; i++) {
+        const column = columnGroup.cloneNode(true);
+        column.setAttribute("transform", `translate(${x}, ${y})`);
+        g.appendChild(column);
+        x += columnWidthVariable;
+    }
+
+    const boardBox = new Box(undefined, undefined);
+    boardBox.strokeWidth = box.strokeWidth;
+    boardBox.outerWidth = usedWidth;
+    boardBox.outerHeight = usedHeight;
+    g.appendChild(makeBox(boardBox, 0, 0, undefined, "none"));
+    return [g, usedWidth, usedHeight];
 }
 
 /**
