@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Test columns</title>
+    <title>Test boards</title>
 </head>
 
 <body>
@@ -50,7 +50,7 @@
 
         const box = new SVGHanziBox(
             10, 10,
-            new SpacingRectangle(0, 5, 0, 0),
+            new SpacingRectangle(5, 5, 5, 5),
             new SpacingRectangle(0),
             1,
             undefined,
@@ -61,17 +61,18 @@
         box.isEnclosed = box.margin.mergedVertical > 0;
 
         const [board, boardOuterWidth, boardOuterHeight] = makeBoard(
-            boardWidth, boardHeight, box,
-            box.render.bind(box)
+            boardWidth, boardHeight, box, box.render.bind(box)
         )
-        board.setAttribute("transform", `translate(${origin[0]}, ${origin[1]})`);
+        const boardX = origin[0]// + (boardWidth - boardOuterWidth) / 2;
+        const boardY = origin[1]// + (boardHeight - boardOuterHeight) / 2;
+        board.setAttribute("transform", `translate(${boardX}, ${boardY})`);
         svg.appendChild(board);
 
         svg.appendChild(new SVGBox(
             boardOuterWidth, boardOuterHeight,
             undefined, undefined,
             0, "none", testBoxFill1
-        ).render(origin[0], origin[1]));
+        ).render(boardX, boardY));
         svg.appendChild(new SVGBox(
             boardWidth, boardHeight,
             undefined, undefined,

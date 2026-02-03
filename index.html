@@ -21,6 +21,21 @@
             margin: 0 auto;
             display: block;
         }
+
+        @font-face {
+            font-family: 'chihaya';
+            src: url('ちはや純P.ttf') format('truetype')
+        }
+
+        @font-face {
+            font-family: 'xiaolai';
+            src: url('XiaolaiMono-Regular.ttf') format('truetype')
+        }
+
+        @font-face {
+            font-family: 'mingkwai';
+            src: url('MingKwai.ttf') format('truetype')
+        }
     </style>
 </head>
 
@@ -105,7 +120,7 @@
     </main>
 
     <script type="module">
-        import { generatePage } from './svg.js';
+        import { makeBoard, SVGHanziBox, brightenColor } from './svg.js';
         import { SpacingRectangle, Box } from './geometry.js';
 
         const titleColumnIdxInput = document.getElementById('titleColumnIdx');
@@ -128,42 +143,131 @@
                 innerSize * parseFloat(formState.boxMarginBottom),
                 innerSize * parseFloat(formState.boxMarginLeft)
             );
+            if (formState.gridStyle === 'ruled') {
+                boxMargin.top = 0;
+                boxMargin.bottom = 0;
+            }
+
             const strokeRelativeWidth = parseFloat(formState.strokeWidth);
-            const boxSize = new Box(
-                innerSize,
-                innerSize,
+            const strokeWidth = innerSize * strokeRelativeWidth;
+
+            const nDashesStraight = 19;
+            const nDashesDiagonal = 25;
+            const mainStrokeColor = formState.mainStrokeColor;
+            const innerColor = brightenColor(mainStrokeColor, 0.7);
+
+            const box = new SVGHanziBox(
+                innerSize, innerSize,
                 boxMargin,
                 new SpacingRectangle(),
-                innerSize * strokeRelativeWidth
+                strokeWidth,
+                boxMargin.mergedVertical > 0, // isEnclosed
+                nDashesStraight, nDashesDiagonal,
+                mainStrokeColor, innerColor,
+                formState.gridStyle === 'grid' && formState.addCross === 'on',
+                formState.gridStyle === 'grid' && formState.addDiagonal === 'on',
+                formState.gridStyle === 'grid' && formState.addThirds === 'on',
+                formState.gridStyle === 'grid' && formState.addBox === 'on',
+                formState.gridStyle === 'grid'
             );
 
             const pagePadding = new SpacingRectangle(
                 parseFloat(formState.marginTop), parseFloat(formState.marginRight),
                 parseFloat(formState.marginBottom), parseFloat(formState.marginLeft)
             );
+
             const pageGeometry = new Box(
                 pageWidth - pagePadding.totalHorizontal, pageHeight - pagePadding.totalVertical,
-                new SpacingRectangle(),
+                new SpacingRectangle(), // margin (unused for page)
                 pagePadding
             );
 
             const state = {
-                boxSize,
-                mainStrokeColor: formState.mainStrokeColor,
-                boxStyle: formState.gridStyle,
-                addCross: formState.addCross === 'on',
-                addDiagonal: formState.addDiagonal === 'on',
-                addThirds: formState.addThirds === 'on',
-                addBox: formState.addBox === 'on',
+                box,
                 page: pageGeometry,
                 titleColumn: formState.titleColumnIdx,
                 titleLength: parseInt(formState.titleHeight),
             };
 
-            const { svg: svgContent, nColumns, nRows } = generatePage(state);
+            const boardAvailableWidth = state.page.innerWidth;
+            const boardAvailableHeight = state.page.innerHeight;
+
+            const [boardNode, boardWidth, boardHeight, nCols, nRows] = makeBoard(
+                boardAvailableWidth, boardAvailableHeight, box, box.render.bind(box)
+            );
+
+            // Construct SVG
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", `${pageWidth}mm`);
+            svg.setAttribute("height", `${pageHeight}mm`);
+            svg.setAttribute("viewBox", `0 0 ${pageWidth} ${pageHeight}`);
+            svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+            const x = pagePadding.left + (boardAvailableWidth - boardWidth) / 2;
+            const y = pagePadding.top + (boardAvailableHeight - boardHeight) / 2;
+            boardNode.setAttribute("transform", `translate(${x.toFixed(4)}, ${y.toFixed(4)})`);
+            svg.appendChild(boardNode);
+
+            /* Test adding text to boxes */ {
+                const boxes = (
+                    Array.from(boardNode.querySelectorAll("use"))
+                        .map(
+                            (b) => {
+                                const matrix = b.transform.baseVal.getItem(0).matrix;
+                                return [matrix.e, matrix.f];
+                            }
+                        )
+                );
+                const grid = Array.from({ length: nRows }, (_, i) => Array.from({ length: nCols }, (_, j) => boxes[j * nRows + i]));
+                console.log(grid)
+
+
+                const textNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textNode.setAttribute("font-size", `${innerSize}`);
+                textNode.setAttribute("dominant-baseline", "central");
+                textNode.setAttribute("text-anchor", "middle");
+                textNode.setAttribute("fill", "black");
+                textNode.setAttribute("writing-mode", "vertical-rl");
+                let [x0, y0] = box.innerOrigin;
+                x0 += innerSize / 2;
+                y0 += innerSize / 2;
+                let i = 0;
+                let j = nCols - 1;
+
+                // const fontFamily = "Noto Sans SC";
+                // const fontFamily = "chihaya";
+                // const fontFamily = "xiaolai";
+                const fontFamily = "mingkwai";
+
+                textNode.setAttribute("font-family", fontFamily);
+                switch (fontFamily) {
+                    case "Noto Sans SC":
+                        // y0 -= innerSize * 40 / 1000;
+                        break;
+                }
+                for (const c of "凡訓蒙須講究詳訓詁名句讀") {
+                    const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+                    let [x, y] = grid[i][j];
+                    tspan.setAttribute("x", (x0 + x).toFixed(4));
+                    tspan.setAttribute("y", (y0 + y).toFixed(4));
+                    tspan.textContent = c;
+                    textNode.appendChild(tspan);
+                    i++;
+                    if (i == nRows) {
+                        i = 0;
+                        j--;
+                    }
+                }
+                boardNode.appendChild(textNode);
+            }
+
+            const svgContent = `<?xml version="1.0" encoding="utf-8"?>\n${svg.outerHTML}`;
+
+            // Update UI
             previewContainer.innerHTML = svgContent;
-            nCells.textContent = `${nColumns} x ${nRows}`;
-            titleHeightInput.max = nRows - 1;
+            nCells.textContent = `${nCols} x ${nRows}`;
+            // titleHeightInput.max = nRows - 1; (Ignoring title for now)
+
             document.documentElement.style.setProperty("--page-width", pageWidth);
             document.documentElement.style.setProperty("--page-height", pageHeight);
             return svgContent;
