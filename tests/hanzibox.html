@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Test box</title>
+    <title>Test hanzibox</title>
 </head>
 
 <body>
@@ -11,111 +11,127 @@
     </svg>
     <script type="module">
         import { Box, SpacingRectangle } from "../geometry.js";
-        import { makeHanziBox, makeLine, makeBox } from "../svg.js"
+        import { SVGBox, SVGHanziBox, makeLine } from "../svg.js"
 
         const svg = document.querySelector('svg');
         const SVG_NS = "http://www.w3.org/2000/svg";
 
-        const testWidth = 210;
-        const testHeight = 210;
-        const gridSize = 5;
+        const testWidth = 48;
+        const testHeight = 48;
         {
             const g = document.createElementNS(SVG_NS, "g");
             const strokeColor = "#aaaaaa";
             svg.setAttribute("viewBox", `0 0 ${testWidth} ${testHeight}`);
             svg.appendChild(g);
-            g.setAttribute("stroke-width", (gridSize / 20).toFixed(4));
-            for (let i = 0; i <= testWidth / gridSize; i++) {
+            g.setAttribute("stroke-width", (1 / 20).toFixed(4));
+            for (let i = 0; i <= testWidth; i++) {
                 g.appendChild(makeLine(
-                    i * gridSize, 0, i * gridSize, testHeight, 0,
+                    i, 0, i, testHeight, 0,
                     strokeColor
                 ));
             }
-            for (let i = 0; i <= testHeight / gridSize; i++) {
+            for (let i = 0; i <= testHeight; i++) {
                 g.appendChild(makeLine(
-                    0, i * gridSize, testWidth, i * gridSize, 0,
+                    0, i, testWidth, i, 0,
                     strokeColor
                 ));
             }
         }
 
-        let origin = [10, 10];
-        const baseBox = new Box(10 * gridSize, 10 * gridSize, new SpacingRectangle(0.5), new SpacingRectangle(), gridSize);
+
+        let origin = [1, 1];
+
+        // Base configuration for test boxes
+        const baseBox = new SVGHanziBox(
+            10, 10,
+            undefined, undefined,
+            1,
+            true,
+            0, 0,
+            "black", "#aaaaaa",
+            false, false, false, false
+        );
+
         const testBoxFill = "color(srgb 1 0.75 0.8 / 0.5)"
 
         /* Outer box test */{
             const box = baseBox.clone();
             let [x, y] = origin;
-            box.margin = new SpacingRectangle(0.5);
 
-            let hanziBox = makeHanziBox(box, 0, 0, "black", "#aaaaaa", false, false, false, false);
-            hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+            box.isEnclosed = true;
+            let hanziBox = box.render(x, y, true);
             svg.appendChild(hanziBox);
-
-            const outerBox = new Box(undefined, undefined);
-            outerBox.strokeWidth = 0;
-            outerBox.outerHeight = box.outerHeight;
-            outerBox.outerWidth = box.outerWidth;
-            svg.appendChild(makeBox(outerBox, x, y, "none", testBoxFill))
+            svg.appendChild(new SVGBox(
+                box.outerWidth, box.outerHeight,
+                undefined, undefined,
+                0, "none", testBoxFill
+            ).render(x, y));
 
             x += box.outerWidth + 5;
-            box.margin = new SpacingRectangle(0, 0.5);
-            hanziBox = makeHanziBox(box, 0, 0, "black", "#aaaaaa", false, false, false, false);
-            hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+            box.isEnclosed = false;
+            hanziBox = box.render(x, y, true);
             svg.appendChild(hanziBox);
-            svg.appendChild(makeBox(outerBox, x, y, "none", testBoxFill))
+            svg.appendChild(new SVGBox(box.outerWidth, box.outerHeight, undefined, undefined, 0, "none", testBoxFill).render(x, y));
 
             x += box.outerWidth + 5;
-            box.margin = new SpacingRectangle(0.5);
-            hanziBox = makeHanziBox(box, 0, 0, "black", "#aaaaaa", false, false, false, false);
-            hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+            box.isEnclosed = true;
+            hanziBox = box.render(x, y, true);
             svg.appendChild(hanziBox);
 
-            let [x0, y0] = [0, 0];
-            hanziBox.appendChild(makeBox(new Box(gridSize, gridSize), x0, y0, "none", testBoxFill));
+            let [x0, y0] = [x, y];
+            svg.appendChild(new SVGBox(
+                1, 1,
+                undefined, undefined,
+                0, "none", testBoxFill
+            ).render(x0, y0));
 
             [x0, y0] = box.innerOrigin;
-            hanziBox.appendChild(makeBox(new Box(gridSize, gridSize), x0, y0, "none", testBoxFill))
+            x0 += x;
+            y0 += y;
+            svg.appendChild(new SVGBox(
+                1, 1,
+                undefined, undefined,
+                0, "none", testBoxFill
+            ).render(x0, y0));
         }
 
         origin[1] += baseBox.outerHeight + 5;
 
         /* Test cross */ {
             const box = baseBox.clone();
+            box.addCross = true;
             let [x, y] = origin;
 
-            let hanziBox = makeHanziBox(box, 0, 0, "black", "#aaaaaa", true, false, false, false);
-            hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+            let hanziBox = box.render(x, y, true);
             svg.appendChild(hanziBox);
 
-            const halfBox = new Box(box.innerWidth / 2, box.innerHeight / 2);
+            const halfBox = new SVGBox(box.innerWidth / 2, box.innerHeight / 2, undefined, undefined, 0, "none", testBoxFill);
+
             x += box.innerOrigin[0];
             y += box.innerOrigin[1];
-            svg.appendChild(makeBox(halfBox, x, y, "none", testBoxFill))
+            svg.appendChild(halfBox.render(x, y));
             x += halfBox.innerWidth;
             y += halfBox.innerHeight;
-            svg.appendChild(makeBox(halfBox, x, y, "none", testBoxFill))
+            svg.appendChild(halfBox.render(x, y));
         }
 
         origin[1] += baseBox.outerHeight + 5;
         /* Test fourth */ {
             const box = baseBox.clone();
+            box.addBox = true;
             let [x, y] = origin;
 
-            let hanziBox = makeHanziBox(box, 0, 0, "black", "#aaaaaa", false, false, false, true);
-            hanziBox.setAttribute("transform", `translate(${x}, ${y})`);
+            let hanziBox = box.render(x, y, true);
             svg.appendChild(hanziBox);
 
-            const fourthBox = new Box(box.innerWidth / 4, box.innerHeight / 4);
+            const fourthBox = new SVGBox(box.innerWidth / 4, box.innerHeight / 4, undefined, undefined, 0, "none", testBoxFill);
             x += box.innerOrigin[0];
             y += box.innerOrigin[1];
             for (let i = 0; i < 4; i++) {
-                svg.appendChild(makeBox(
-                    fourthBox,
+                svg.appendChild(fourthBox.render(
                     x + i * fourthBox.innerWidth,
-                    y + i * fourthBox.innerHeight,
-                    "none", testBoxFill
-                ))
+                    y + i * fourthBox.innerHeight
+                ));
             }
         }
 

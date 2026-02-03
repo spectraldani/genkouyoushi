@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Test columns</title>
+    <title>Test boxes</title>
 </head>
 
 <body>
@@ -11,52 +11,52 @@
     </svg>
     <script type="module">
         import { Box, SpacingRectangle } from "../geometry.js";
-        import { makeHanziBox as makeHanziBoxOG, makeLine, makeBox } from "../svg.js"
+        import { makeLine, SVGBox } from "../svg.js"
 
         const svg = document.querySelector('svg');
         const SVG_NS = "http://www.w3.org/2000/svg";
 
-        const gridSize = 5;
-        const testWidth = gridSize * 33;
-        const testHeight = gridSize * 33;
+        const testWidth = 33;
+        const testHeight = 33;
         {
             const g = document.createElementNS(SVG_NS, "g");
             const strokeColor = "#aaaaaa";
             svg.setAttribute("viewBox", `0 0 ${testWidth} ${testHeight}`);
             svg.appendChild(g);
-            g.setAttribute("stroke-width", (gridSize / 20).toFixed(4));
-            for (let i = 0; i <= testWidth / gridSize; i++) {
+            g.setAttribute("stroke-width", (1 / 20).toFixed(4));
+            for (let i = 0; i <= testWidth; i++) {
                 g.appendChild(makeLine(
-                    i * gridSize, 0, i * gridSize, testHeight, 0,
+                    i, 0, i, testHeight, 0,
                     strokeColor
                 ));
             }
-            for (let i = 0; i <= testHeight / gridSize; i++) {
+            for (let i = 0; i <= testHeight; i++) {
                 g.appendChild(makeLine(
-                    0, i * gridSize, testWidth, i * gridSize, 0,
+                    0, i, testWidth, i, 0,
                     strokeColor
                 ));
             }
         }
 
-        let origin = [gridSize, gridSize];
-        const baseBox = new Box(5 * gridSize, 5 * gridSize);
-        baseBox.strokeWidth = gridSize;
+        let origin = [1, 1];
+        const baseBox = new SVGBox(
+            5, 5,
+            undefined, undefined,
+            1,
+            "black", "pink"
+        );
 
         for (let i = 0; i < 16; i++) {
-            const box = (makeBox(
-                baseBox,
-                origin[0],
-                origin[1],
-                "black",
-                "pink",
-                [!!(i & 1), !!(i & 2), !!(i & 4), !!(i & 8)]
-            ))
-            svg.appendChild(box);
-            origin[0] += baseBox.outerWidth + gridSize;
+            const sides = [!!(i & 1), !!(i & 2), !!(i & 4), !!(i & 8)];
+            const boxClone = baseBox.clone();
+            boxClone.sides = sides;
+
+            svg.appendChild(boxClone.render(origin[0], origin[1]));
+
+            origin[0] += baseBox.outerWidth + 1;
             if (origin[0] > testWidth - baseBox.outerWidth) {
-                origin[0] = gridSize;
-                origin[1] += baseBox.outerHeight + gridSize;
+                origin[0] = 1;
+                origin[1] += baseBox.outerHeight + 1;
             }
         }
     </script>
