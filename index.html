@@ -219,7 +219,6 @@
                         )
                 );
                 const grid = Array.from({ length: nRows }, (_, i) => Array.from({ length: nCols }, (_, j) => boxes[j * nRows + i]));
-                console.log(grid)
 
 
                 const textNode = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -234,17 +233,12 @@
                 let i = 0;
                 let j = nCols - 1;
 
-                // const fontFamily = "Noto Sans SC";
+                const fontFamily = "Noto Sans SC";
                 // const fontFamily = "chihaya";
                 // const fontFamily = "xiaolai";
-                const fontFamily = "mingkwai";
+                // const fontFamily = "mingkwai";
 
                 textNode.setAttribute("font-family", fontFamily);
-                switch (fontFamily) {
-                    case "Noto Sans SC":
-                        // y0 -= innerSize * 40 / 1000;
-                        break;
-                }
                 for (const c of "凡訓蒙須講究詳訓詁名句讀") {
                     const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
                     let [x, y] = grid[i][j];
@@ -256,6 +250,9 @@
                     if (i == nRows) {
                         i = 0;
                         j--;
+                    }
+                    if (j < 0) {
+                        break;
                     }
                 }
                 boardNode.appendChild(textNode);
